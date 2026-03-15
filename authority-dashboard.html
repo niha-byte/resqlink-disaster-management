@@ -220,5 +220,24 @@
         // Initial Load
         document.addEventListener('DOMContentLoaded', loadReports);
     </script>
+    <script>
+document.querySelectorAll(".resolve-btn").forEach(button => {
+  button.addEventListener("click", function() {
+
+    const card = this.closest(".report-card");
+
+    if(card){
+      card.style.transition = "0.4s";
+      card.style.opacity = "0";
+      card.style.transform = "translateX(80px)";
+
+      setTimeout(() => {
+        card.remove();
+      }, 400);
+    }
+
+  });
+});
+</script>
 </body>
 </html>
