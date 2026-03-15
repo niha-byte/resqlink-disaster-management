@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Dashboard - ResQlink</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        .volunteer-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        #map-volunteer {
+            height: 50vh;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .mission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .mission-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Animation class for the moving rescue vehicle */
+        .moving-rescue {
+            transition: transform 2s linear;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <i data-feather="activity"></i> ResQ<span>link</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="report.html">Report</a>
+                <a href="authority-dashboard.html">Authority</a>
+                <a href="volunteer-dashboard.html" class="active">Volunteer</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="animate-fade-in volunteer-container">
+            <div class="glass-card" style="padding: 1rem;">
+                <h2 style="margin: 0 0 1rem 1rem; display: flex; align-items: center; gap: 8px;">
+                    <i data-feather="map"></i> Live Rescue Map
+                </h2>
+                <div id="map-volunteer"></div>
+            </div>
+
+            <div>
+                <h2>Nearby Critical Missions</h2>
+                <p style="color: var(--text-muted); margin-bottom: 2rem;">Accept missions to dispatch a rescue unit. The map will simulate team movement.</p>
+                
+                <div class="mission-grid" id="mission-container">
+                    <div style="color: var(--text-muted);">Loading active missions...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/script.js"></script>
+    <script>
+        feather.replace();
+
+        const map = L.map('map-volunteer').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        let incidentMarkers = [];
+        let rescueUnits = [];
+
+        async function loadMissions() {
+            const container = document.getElementById('mission-container');
+            const reports = await fetchReports();
+            
+            // Only show Pending or In Progress
+            const activeReports = reports.filter(r => r.status !== 'Resolved');
+
+            if (activeReports.length === 0) {
+                container.innerHTML = `<div style="color: var(--text-muted);">No active missions nearby.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            activeReports.forEach(report => {
+                // Add Marker
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style='background-color:#ef4444; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow: 0 0 10px #ef4444;'></div>`,
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                });
+                const m = L.marker([report.latitude, report.longitude], {icon: customIcon}).addTo(map)
+                    .bindPopup(`${report.disasterType} - Priority: ${report.priority}`);
+                incidentMarkers.push(m);
+
+                // Add Card
+                const card = document.createElement('div');
+                card.className = 'mission-card glass-card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between;">
+                        <h3 style="color:white; margin:0;">${report.disasterType}</h3>
+                        <span class="badge ${getPriorityBadgeClass(report.priority)}">${report.priority}</span>
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">
+                        <i data-feather="users" width="16" height="16"></i> ${report.affectedPeople} Affected
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.9rem;">
+                        <i data-feather="clock" width="16" height="16"></i> ${new Date(report.timestamp).toLocaleTimeString()}
+                    </div>
+                    <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" 
+                            id="btn-${report.id}" onclick="acceptMission(${report.id}, ${report.latitude}, ${report.longitude})">
+                        Accept Rescue Mission
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+            feather.replace();
+
+            // Fit map
+            if (activeReports.length > 0) {
+                const group = new L.featureGroup(incidentMarkers);
+                map.fitBounds(group.getBounds().pad(0.5));
+            }
+        }
+
+        window.acceptMission = async function(id, destLat, destLng) {
+            const btn = document.getElementById(`btn-${id}`);
+            btn.innerHTML = 'Dispatching Unit...';
+            btn.disabled = true;
+            btn.classList.replace('btn-primary', 'btn-outline');
+
+            try {
+                await updateReportStatus(id, 'In Progress');
+                showAlertBanner('Rescue Unit Dispatched!');
+                
+                // Simulate Uber Style tracking
+                // Create a rescue unit somewhat distant from the incident
+                const startLat = destLat - (Math.random() * 0.05 + 0.02);
+                const startLng = destLng - (Math.random() * 0.05 + 0.02);
+                
+                const ambulanceIcon = L.divIcon({
+                    className: 'rescue-div-icon',
+                    html: `<div style='background-color:#10b981; color:white; width:24px; height:24px; border-radius:12px; display:flex; justify-content:center; align-items:center; box-shadow: 0 0 15px #10b981;'><i data-feather="plus" width="14" height="14"></i></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+
+                const rescueMarker = L.marker([startLat, startLng], {icon: ambulanceIcon}).addTo(map);
+                rescueMarker.bindPopup("Rescue Unit En Route").openPopup();
+                feather.replace();
+
+                // Animate movement (basic simulation interpolation)
+                let step = 0;
+                const totalSteps = 40; // over 20 seconds (500ms intervals)
+                
+                const latStep = (destLat - startLat) / totalSteps;
+                const lngStep = (destLng - startLng) / totalSteps;
+
+                const moveInterval = setInterval(() => {
+                    step++;
+                    if (step > totalSteps) {
+                        clearInterval(moveInterval);
+                        rescueMarker.bindPopup("Unit Arrived at Destination").openPopup();
+                        btn.innerHTML = 'Unit Arrived';
+                        return;
+                    }
+                    
+                    const nextLat = startLat + (latStep * step);
+                    const nextLng = startLng + (lngStep * step);
+                    rescueMarker.setLatLng([nextLat, nextLng]);
+                    
+                }, 100);
+
+            } catch(e) {
+                showAlertBanner('Failed to accept mission.');
+                btn.innerHTML = 'Accept Rescue Mission';
+                btn.disabled = false;
+                btn.classList.replace('btn-outline', 'btn-primary');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', loadMissions);
+    </script>
+</body>
+</html>

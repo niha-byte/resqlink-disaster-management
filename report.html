@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Disaster - ResQlink</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        .report-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        @media (max-width: 900px) {
+            .report-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--accent-orange);
+            background: rgba(249, 115, 22, 0.1);
+        }
+        
+        .upload-icon {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+        
+        #image-preview {
+            max-width: 100%;
+            border-radius: 8px;
+            display: none;
+            margin-top: 1rem;
+        }
+        
+        .loader {
+            display: none;
+            margin: 1rem auto;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: var(--accent-orange);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <i data-feather="activity"></i> ResQ<span>link</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="report.html" class="active">Report</a>
+                <a href="authority-dashboard.html">Authority</a>
+                <a href="volunteer-dashboard.html">Volunteer</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h1 class="animate-fade-in">Report a Disaster</h1>
+        <p class="animate-fade-in" style="color: var(--text-muted);">Provide accurate details to help rescue operations prioritize effectively.</p>
+        
+        <div class="report-layout animate-fade-in">
+            <!-- Form Section -->
+            <div class="glass-card">
+                <form id="report-form">
+                    <div class="form-group">
+                        <label>Disaster Type</label>
+                        <select id="disasterType" class="form-control" required>
+                            <option value="">Select Type...</option>
+                            <option value="Fire">Fire</option>
+                            <option value="Flood">Flood</option>
+                            <option value="Earthquake">Earthquake</option>
+                            <option value="Accident">Accident</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Image Upload (AI Analysis)</label>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                        <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+                            <i data-feather="camera" class="upload-icon" width="32" height="32"></i>
+                            <p>Click to upload or drag image here</p>
+                            <img id="image-preview" src="" alt="Preview">
+                        </div>
+                        <div class="loader" id="ai-loader"></div>
+                        <div class="ai-analysis-box" id="ai-result">
+                            <!-- AI logic goes here -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Number of Affected People</label>
+                        <input type="number" id="affectedPeople" class="form-control" min="1" placeholder="e.g. 50" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Reported Severity (Manual)</label>
+                        <select id="severity" class="form-control" required>
+                            <option value="High">High (Immediate Danger)</option>
+                            <option value="Medium">Medium (Developing Situation)</option>
+                            <option value="Low">Low (Safe but needs assistance)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Detailed Description</label>
+                        <textarea id="description" class="form-control" rows="4" placeholder="Provide any additional critical details..."></textarea>
+                    </div>
+
+                    <input type="hidden" id="latitude">
+                    <input type="hidden" id="longitude">
+                    <input type="hidden" id="location-name">
+                    
+                    <input type="hidden" id="aiSeverity">
+                    <input type="hidden" id="aiConfidence">
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;" id="submitBtn">Submit Report</button>
+                </form>
+            </div>
+
+            <!-- Map Section -->
+            <div class="glass-card" style="display: flex; flex-direction: column;">
+                <h3 style="margin-bottom: 1rem;">Incident Location</h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Click on the map to drop a pin, or use auto-detect.
+                </p>
+                <div id="map" style="flex: 1; min-height: 400px;"></div>
+                <button type="button" class="btn btn-outline" style="margin-top: 1rem;" onclick="detectLocation()">
+                    <i data-feather="map-pin"></i> Auto-Detect My Location
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/script.js"></script>
+    <script>
+        feather.replace();
+
+        // 1. Initialize Leaflet Map
+        const map = L.map('map').setView([20.5937, 78.9629], 5); // default center (India)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
+
+        let currentMarker = null;
+
+        function setLocation(lat, lng, label = 'Selected Location') {
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+            document.getElementById('location-name').value = label;
+
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+            
+            const customIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style='background-color:#f97316; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow: 0 0 10px rgba(249,115,22,0.8);'></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+
+            currentMarker = L.marker([lat, lng], {icon: customIcon}).addTo(map)
+                .bindPopup(label).openPopup();
+            
+            map.flyTo([lat, lng], 13);
+        }
+
+        // Map Click Event
+        map.on('click', function(e) {
+            setLocation(e.latlng.lat, e.latlng.lng, 'Clicked Location');
+        });
+
+        // Auto-detect location
+        function detectLocation() {
+            if ("geolocation" in navigator) {
+                showAlertBanner('Requesting location access...');
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        setLocation(position.coords.latitude, position.coords.longitude, 'My Location');
+                        showAlertBanner('Location detected successfully!');
+                    },
+                    (error) => {
+                        showAlertBanner('Failed to detect location. Please click on map.');
+                    }
+                );
+            } else {
+                showAlertBanner("Geolocation is not supported by your browser");
+            }
+        }
+
+        // 2. AI Image Analysis Simulation
+        const imageInput = document.getElementById('imageInput');
+        imageInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('image-preview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+
+            // Simulate AI
+            const loader = document.getElementById('ai-loader');
+            const resultBox = document.getElementById('ai-result');
+            
+            loader.style.display = 'block';
+            resultBox.classList.remove('active');
+            
+            const aiData = await simulateAIAnalysis(file);
+            
+            loader.style.display = 'none';
+            resultBox.classList.add('active');
+            
+            let resultHTML = `
+                <div><strong>Detected:</strong> ${aiData.detected}</div>
+                <div><strong>Severity:</strong> <span style="color:var(--accent-orange)">${aiData.severity}</span></div>
+                <div><strong>Confidence:</strong> ${aiData.confidence}%</div>
+            `;
+            
+            if (aiData.isPossibleFake) {
+                resultHTML += `
+                    <div class="fake-warning">
+                        <i data-feather="alert-octagon"></i>
+                        Possible fake or misleading image detected (Anomalies found).
+                    </div>
+                `;
+            } else {
+                resultHTML += `
+                    <div style="color:var(--low-green); margin-top:0.5rem; display:flex; align-items:center; gap:5px;">
+                        <i data-feather="check-circle" width="16" height="16"></i> Image Verified
+                    </div>
+                `;
+            }
+            
+            resultBox.innerHTML = resultHTML;
+            feather.replace();
+
+            // Set hidden fields
+            document.getElementById('aiSeverity').value = aiData.severity;
+            document.getElementById('aiConfidence').value = aiData.confidence;
+            
+            // Auto-select disaster type based on AI if not set
+            const typeSelect = document.getElementById('disasterType');
+            if (typeSelect.value === '') {
+                // simple mapping if needed, or exact match
+                typeSelect.value = aiData.detected;
+            }
+        });
+
+        // 3. Form Submission
+        document.getElementById('report-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            
+            if (!lat || !lng) {
+                showAlertBanner('Please select a location on the map.');
+                return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = 'Submitting...';
+            btn.disabled = true;
+
+            const reportData = {
+                disasterType: document.getElementById('disasterType').value,
+                location: document.getElementById('location-name').value,
+                latitude: lat,
+                longitude: lng,
+                severity: document.getElementById('severity').value,
+                affectedPeople: document.getElementById('affectedPeople').value,
+                description: document.getElementById('description').value,
+                imageSeverity: document.getElementById('aiSeverity').value || 'Unknown',
+                imageConfidence: document.getElementById('aiConfidence').value || 0
+            };
+
+            try {
+                await submitReport(reportData);
+                showAlertBanner('Report submitted successfully!');
+                setTimeout(() => {
+                    window.location.href = 'authority-dashboard.html';
+                }, 1500);
+            } catch (error) {
+                showAlertBanner('Failed to submit report. Ensure backend is running.');
+                btn.innerHTML = 'Submit Report';
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

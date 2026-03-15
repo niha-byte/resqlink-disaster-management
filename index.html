@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResQlink - Digital Bridge Between Crisis and Rescue</title>
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Custom Styles for Landing Page specific elements -->
+    <style>
+        .stats-section {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            min-width: 150px;
+        }
+        
+        .stat-val {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent-orange);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .how-it-works {
+            margin-top: 5rem;
+            padding: 3rem 0;
+            text-align: center;
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 250px;
+            padding: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            position: relative;
+        }
+        
+        .step-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(249, 115, 22, 0.2);
+            color: var(--accent-orange);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .step h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .step p {
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        
+        .categories {
+            margin-top: 5rem;
+            text-align: center;
+            padding-bottom: 5rem;
+        }
+        
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .cat-card {
+            padding: 1.5rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .cat-card:hover {
+            border-color: var(--accent-orange);
+            background: rgba(249, 115, 22, 0.1);
+        }
+        
+        .cat-icon {
+            margin-bottom: 1rem;
+            color: var(--accent-orange);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <i data-feather="activity"></i> ResQ<span>link</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html" class="active">Home</a>
+                <a href="report.html">Report</a>
+                <a href="authority-dashboard.html">Authority</a>
+                <a href="volunteer-dashboard.html">Volunteer</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <section class="hero animate-fade-in">
+            <h1>Connecting People in Crisis</h1>
+            <p>Your Digital Bridge Between Crisis and Rapid Rescue Support. AI-powered incident analysis and real-time response unit tracking.</p>
+            
+            <div class="hero-actions">
+                <a href="report.html" class="btn btn-primary">Report Disaster</a>
+                <a href="volunteer-dashboard.html" class="btn btn-outline">Request Help / Volunteer</a>
+            </div>
+            
+            <div class="stats-section">
+                <div class="stat-card glass-card">
+                    <div class="stat-val" id="stat-reports">1,245</div>
+                    <div class="stat-label">Total Reports</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="stat-val" id="stat-active">86</div>
+                    <div class="stat-label">Active Operations</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="stat-val" id="stat-volunteers">430+</div>
+                    <div class="stat-label">Volunteers Ready</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="how-it-works animate-fade-in" style="animation-delay: 0.2s;">
+            <h2>How RestQlink Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-icon"><i data-feather="alert-triangle" width="32" height="32"></i></div>
+                    <h3>1. Report</h3>
+                    <p>Citizens upload images and location data directly from their smartphones.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i data-feather="cpu" width="32" height="32"></i></div>
+                    <h3>2. AI Analysis</h3>
+                    <p>Our system analyzes imagery for fake reports, assesses severity, and prioritizes incidents automatically.</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon"><i data-feather="navigation" width="32" height="32"></i></div>
+                    <h3>3. Rescue Response</h3>
+                    <p>Authorities and volunteers are instantly dispatched to high-priority zones with real-time routing.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="categories animate-fade-in" style="animation-delay: 0.4s;">
+            <h2>Disaster Categories Supported</h2>
+            <div class="category-grid">
+                <div class="cat-card">
+                    <i data-feather="thermometer" class="cat-icon" width="40" height="40"></i>
+                    <h3>Fire</h3>
+                </div>
+                <div class="cat-card">
+                    <i data-feather="cloud-rain" class="cat-icon" width="40" height="40"></i>
+                    <h3>Flood</h3>
+                </div>
+                <div class="cat-card">
+                    <i data-feather="layers" class="cat-icon" width="40" height="40"></i>
+                    <h3>Earthquake</h3>
+                </div>
+                <div class="cat-card">
+                    <i data-feather="alert-octagon" class="cat-icon" width="40" height="40"></i>
+                    <h3>Accident</h3>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="js/script.js"></script>
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>

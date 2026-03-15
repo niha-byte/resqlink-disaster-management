@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authority Dashboard - ResQlink</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/feather-icons"></script>
+    <link rel="stylesheet" href="css/style.css">
+    
+    <style>
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .reports-list {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        /* Custom Scrollbar */
+        .reports-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .reports-list::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        .reports-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .reports-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        .report-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .status-select {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        #map-dashboard {
+            height: 100%;
+            min-height: 600px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav class="navbar">
+            <div class="logo">
+                <i data-feather="activity"></i> ResQ<span>link</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="report.html">Report</a>
+                <a href="authority-dashboard.html" class="active">Authority</a>
+                <a href="volunteer-dashboard.html">Volunteer</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="dashboard-header animate-fade-in">
+            <div>
+                <h1>Command Center</h1>
+                <p style="color: var(--text-muted);">Real-time Disaster Tracking & Prioritization</p>
+            </div>
+            <div>
+                <button class="btn btn-outline btn-sm" onclick="loadReports()"><i data-feather="refresh-cw"></i> Refresh</button>
+            </div>
+        </div>
+
+        <div class="dashboard-grid animate-fade-in" style="animation-delay: 0.1s;">
+            <!-- List View -->
+            <div class="glass-card">
+                <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 8px;">
+                    <i data-feather="list"></i> Active Incident Reports
+                </h3>
+                <div class="reports-list" id="reports-container">
+                    <div style="text-align:center; color: var(--text-muted); padding: 2rem;">Loading reports...</div>
+                </div>
+            </div>
+
+            <!-- Map View -->
+            <div class="glass-card" style="padding: 1rem;">
+                <div id="map-dashboard"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/script.js"></script>
+    <script>
+        feather.replace();
+
+        // 1. Initialize Map
+        const map = L.map('map-dashboard').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        let markers = [];
+
+        function getMarkerColor(priority) {
+            switch(priority) {
+                case 'Red': return '#ef4444';
+                case 'Orange': return '#f59e0b';
+                case 'Green': return '#10b981';
+                default: return '#3b82f6';
+            }
+        }
+
+        // 2. Load Reports
+        async function loadReports() {
+            const container = document.getElementById('reports-container');
+            const reports = await fetchReports();
+            
+            // Clear map points
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            
+            if (reports.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color: var(--text-muted); padding: 2rem;">No active reports found.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            const bounds = [];
+
+            reports.forEach(report => {
+                const date = new Date(report.timestamp).toLocaleString();
+                const badgeClass = getPriorityBadgeClass(report.priority);
+
+                // Add to list
+                const card = document.createElement('div');
+                card.className = 'report-card';
+                card.innerHTML = `
+                    <div class="report-header">
+                        <h4>${report.disasterType} <span class="badge ${badgeClass}">${report.priority} Priority</span></h4>
+                        <span class="report-meta">${date}</span>
+                    </div>
+                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">
+                        <strong>Location:</strong> Lat: ${report.latitude.toFixed(4)}, Lng: ${report.longitude.toFixed(4)}
+                    </div>
+                    <div style="font-size: 0.9rem;">
+                        <strong>Affected:</strong> ~${report.affectedPeople} People
+                    </div>
+                    <div style="font-size: 0.9rem;">
+                        <strong>Status:</strong> <span style="font-weight:700;">${report.status}</span>
+                    </div>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        ${report.description || 'No additional description provided.'}
+                    </p>
+                    <div class="report-actions">
+                        <select class="status-select" onchange="updateStatus(${report.id}, this.value)">
+                            <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="In Progress" ${report.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Resolved" ${report.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                        </select>
+                        <button class="btn btn-outline btn-sm" onclick="panToMap(${report.latitude}, ${report.longitude})">
+                            <i data-feather="map"></i> View
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Add to map
+                const color = getMarkerColor(report.priority);
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style='background-color:${color}; width:16px; height:16px; border-radius:50%; border:2px solid white; box-shadow: 0 0 10px ${color};'></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+
+                const m = L.marker([report.latitude, report.longitude], {icon: customIcon}).addTo(map)
+                    .bindPopup(`<b>${report.disasterType}</b><br>Priority: ${report.priority}<br>Status: ${report.status}`);
+                
+                markers.push(m);
+                bounds.push([report.latitude, report.longitude]);
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+
+            feather.replace();
+        }
+
+        window.updateStatus = async function(id, status) {
+            try {
+                await updateReportStatus(id, status);
+                showAlertBanner('Status updated successfully');
+            } catch (error) {
+                showAlertBanner('Failed to update status');
+            }
+        };
+
+        window.panToMap = function(lat, lng) {
+            map.flyTo([lat, lng], 14, { animate: true, duration: 1.5 });
+        };
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', loadReports);
+    </script>
+</body>
+</html>
